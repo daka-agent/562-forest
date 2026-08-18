@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>我们为你种树 · 562班毕业森林</title>
+<meta name="description" content="562班 × 顺丰公益森林 · 48棵树，48个名字，一片属于我们的森林。">
+<meta property="og:title" content="我们为你种树 · 562班毕业森林">
+<meta property="og:description" content="562班 × 顺丰公益森林 · 48棵树，48个名字。点开，找到属于你的那棵树。">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://daka-agent.github.io/562-forest/share-cover.jpg">
+<style>
+  :root{
+    --ink:#3d4a3a; --ink-soft:#6b7a66; --cream:#fff9ec; --warm:#f4a94f;
+    --green-deep:#3f7e4f; --green:#4e8f5b; --green-mid:#5fa36c; --green-light:#6fb37a;
+    --wood:#d9a066; --wood-line:#b78048; --wood-text:#5b3a1e;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;}
+  body{
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:linear-gradient(180deg,#fdf3dd 0%,#cfe7d8 55%,#9ccb7a 100%);
+  }
+  #app{position:fixed;inset:0;overflow:hidden;}
+
+  /* ---------- 世界与镜头 ---------- */
+  #viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none;}
+  #viewport.dragging{cursor:grabbing;}
+  #world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;}
+
+  .cloud{animation:cloudDrift 120s linear infinite;}
+  @keyframes cloudDrift{from{transform:translateX(-260px)}to{transform:translateX(260px)}}
+  .wave{animation:waveSlide 14s ease-in-out infinite alternate;}
+  .wave.w2{animation-duration:19s;animation-delay:-6s;}
+  .wave.w3{animation-duration:24s;animation-delay:-11s;}
+  @keyframes waveSlide{from{transform:translateX(-36px)}to{transform:translateX(36px)}}
+  .bird{animation:birdFly 46s linear infinite;}
+  .bird.b2{animation-duration:64s;animation-delay:-20s;}
+  .bird.b3{animation-duration:55s;animation-delay:-38s;}
+  @keyframes birdFly{from{transform:translate(0,0)}50%{transform:translate(640px,-46px)}to{transform:translate(0,0)}}
+  .sun-glow{animation:sunPulse 7s ease-in-out infinite alternate;}
+  @keyframes sunPulse{from{opacity:.55}to{opacity:.95}}
+
+  /* ---------- 树 ---------- */
+  .tree{cursor:pointer;}
+  .tree .mound{opacity:0;transform:scale(.2);transform-box:fill-box;transform-origin:50% 100%;transition:transform .35s cubic-bezier(.2,1.5,.4,1) .05s,opacity .2s .05s;}
+  .tree .plant{transform:scale(.05);transform-box:fill-box;transform-origin:50% 100%;transition:transform 1s cubic-bezier(.22,1.32,.36,1) .25s;}
+  .tree .canopy-parts{transform:scale(.1);transform-box:fill-box;transform-origin:50% 90%;transition:transform .8s cubic-bezier(.2,1.4,.4,1) .8s;}
+  .tree .tag{opacity:0;transform:translateY(-16px);transform-box:fill-box;transition:opacity .45s 1.15s,transform .45s cubic-bezier(.2,1.6,.4,1) 1.15s;}
+  .tree.grow .mound{opacity:1;transform:scale(1);}
+  .tree.grow .plant{transform:scale(1);}
+  .tree.grow .canopy-parts{transform:scale(1);}
+  .tree.grow .tag{opacity:1;transform:translateY(0);}
+  .tree.grow.instant,.tree.grow.instant *{transition:none !important;}
+  .tree .ring{opacity:0;transform-box:fill-box;transform-origin:50% 50%;}
+  .tree.hot .ring{opacity:1;animation:ringPulse 1.1s ease-out infinite;}
+  @keyframes ringPulse{0%{transform:scale(.4);opacity:.85}100%{transform:scale(1.7);opacity:0}}
+  .tree.dim{opacity:.45;transition:opacity .3s;}
+  .tree{transition:opacity .3s;}
+  @media (hover:hover){.tree.grow:hover .canopy-parts{transform:scale(1.04);}}
+
+  /* ---------- HUD ---------- */
+  .hud{position:absolute;z-index:20;}
+  #counter{
+    top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;
+    background:rgba(255,249,236,.92);border:1px solid rgba(91,58,30,.18);border-radius:999px;
+    padding:6px 14px;font-size:13px;color:var(--ink-soft);box-shadow:0 2px 10px rgba(61,74,58,.12);
+    display:none;align-items:center;gap:6px;backdrop-filter:blur(4px);
+  }
+  #counter b{color:var(--green-deep);font-size:16px;}
+  #counter.pop b{animation:countPop .35s ease;}
+  @keyframes countPop{40%{transform:scale(1.45)}}
+  #counter svg{width:16px;height:16px;}
+
+  #brand{
+    top:calc(env(safe-area-inset-top,0px) + 12px);left:12px;
+    background:rgba(255,249,236,.9);border:1px solid rgba(91,58,30,.18);border-radius:999px;
+    padding:6px 13px;font-size:12.5px;color:var(--ink-soft);display:none;align-items:center;gap:6px;
+  }
+  #brand b{color:var(--green-deep);}
+
+  /* 搜索 */
+  #searchWrap{
+    top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;transform:translateX(-50%);
+    width:min(320px,calc(100vw - 190px));display:none;
+  }
+  #searchBox{position:relative;display:flex;align-items:center;background:rgba(255,249,236,.94);
+    border:1px solid rgba(91,58,30,.2);border-radius:999px;padding:7px 14px;box-shadow:0 2px 10px rgba(61,74,58,.12);}
+  #searchBox svg{width:15px;height:15px;flex:none;margin-right:8px;opacity:.55;}
+  #searchInput{flex:1;border:none;outline:none;background:transparent;font-size:14px;color:var(--ink);min-width:0;}
+  #searchInput::placeholder{color:#9aa894;}
+  #searchResults{margin-top:6px;background:rgba(255,249,236,.97);border:1px solid rgba(91,58,30,.16);
+    border-radius:14px;overflow:hidden;display:none;box-shadow:0 6px 22px rgba(61,74,58,.18);}
+  #searchResults .sr{padding:9px 15px;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+  #searchResults .sr:hover{background:rgba(95,163,108,.12);}
+  #searchResults .sr small{color:#9aa894;font-size:11px;}
+
+  /* 控制按钮 */
+  #ctrls{bottom:calc(env(safe-area-inset-bottom,0px) + 14px);right:12px;display:none;flex-direction:column;gap:8px;align-items:flex-end;}
+  .cbtn{
+    display:flex;align-items:center;gap:6px;background:rgba(255,249,236,.92);border:1px solid rgba(91,58,30,.2);
+    color:var(--ink);border-radius:999px;padding:8px 14px;font-size:13px;cursor:pointer;user-select:none;
+    box-shadow:0 2px 10px rgba(61,74,58,.14);transition:transform .15s,background .2s;
+  }
+  .cbtn:active{transform:scale(.94);}
+  .cbtn:hover{background:#fff;}
+  .cbtn svg{width:14px;height:14px;flex:none;}
+  .cbtn.on{background:var(--green-mid);color:#fff;border-color:var(--green-deep);}
+
+  /* 种树阶段按钮 */
+  #plantCtl{
+    bottom:calc(env(safe-area-inset-bottom,0px) + 18px);left:50%;transform:translateX(-50%);
+    display:none;gap:8px;
+  }
+  .pill{
+    background:rgba(61,74,58,.82);color:#fff;border:none;border-radius:999px;padding:9px 18px;
+    font-size:13px;cursor:pointer;backdrop-filter:blur(4px);transition:transform .15s;
+  }
+  .pill:active{transform:scale(.94);}
+
+  /* 轮播横幅 */
+  #banner{
+    bottom:calc(env(safe-area-inset-bottom,0px) + 84px);left:50%;transform:translateX(-50%) translateY(16px);
+    background:rgba(255,249,236,.95);border:1px solid rgba(91,58,30,.2);border-radius:18px;
+    padding:12px 26px;text-align:center;opacity:0;transition:opacity .4s,transform .4s;pointer-events:none;
+    box-shadow:0 8px 28px rgba(61,74,58,.22);max-width:88vw;
+  }
+  #banner.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #banner .bn{font-size:22px;font-weight:700;color:var(--green-deep);letter-spacing:2px;}
+  #banner .bs{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+
+  /* 卡片 */
+  #card{
+    position:absolute;z-index:30;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);
+    transform:translateX(-50%) translateY(24px);width:min(400px,calc(100vw - 24px));
+    background:rgba(255,252,243,.97);border:1px solid rgba(91,58,30,.2);border-radius:22px;
+    box-shadow:0 12px 40px rgba(61,74,58,.28);padding:18px 20px 16px;
+    opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;
+  }
+  #card.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0);}
+  #card .c-top{display:flex;align-items:flex-start;gap:12px;}
+  #card .c-avatar{width:52px;height:52px;flex:none;border-radius:16px;background:linear-gradient(145deg,#8ec69a,#5fa36c);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;
+    box-shadow:0 3px 8px rgba(63,126,79,.35);}
+  #card .c-name{font-size:24px;font-weight:700;color:var(--ink);line-height:1.2;}
+  #card .c-sub{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  #card .c-close{margin-left:auto;background:none;border:none;font-size:20px;color:#9aa894;cursor:pointer;padding:2px 6px;line-height:1;}
+  #card .c-wish{
+    margin-top:12px;background:rgba(95,163,108,.1);border-left:3px solid var(--green-mid);
+    border-radius:0 12px 12px 0;padding:10px 13px;font-size:14px;color:#4c5a48;line-height:1.7;
+  }
+  #card .c-species{margin-top:10px;font-size:12px;color:var(--ink-soft);line-height:1.7;}
+  #card .c-species b{color:var(--green-deep);}
+  #card .c-foot{margin-top:10px;font-size:11px;color:#9aa894;display:flex;justify-content:space-between;align-items:center;}
+  #card .c-nav{display:flex;gap:6px;}
+  #card .c-nav button{background:rgba(95,163,108,.14);border:none;color:var(--green-deep);border-radius:999px;
+    padding:4px 12px;font-size:12px;cursor:pointer;}
+  #card .c-nav button:hover{background:rgba(95,163,108,.28);}
+
+  /* ---------- 全屏遮罩层 ---------- */
+  .overlay{
+    position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:28px;transition:opacity .6s;
+  }
+  .overlay.hide{opacity:0;pointer-events:none;}
+
+  #intro{background:linear-gradient(175deg,#fdf3dd 0%,#e9f2df 45%,#cfe7d8 100%);}
+  #intro .i-tree{width:110px;height:130px;margin-bottom:6px;animation:sway 4.5s ease-in-out infinite;transform-origin:50% 100%;}
+  @keyframes sway{0%,100%{transform:rotate(-2.5deg)}50%{transform:rotate(2.5deg)}}
+  #intro h1{font-size:clamp(28px,7vw,44px);margin:8px 0 6px;letter-spacing:4px;color:#33513a;
+    font-family:"KaiTi","STKaiti","楷体","PingFang SC",serif;}
+  #intro .i-sub{font-size:14px;color:var(--ink-soft);letter-spacing:2px;}
+  #intro .i-sub b{color:var(--green-deep);}
+  #startBtn{
+    margin-top:34px;background:linear-gradient(145deg,#6fb37a,#4e8f5b);color:#fff;border:none;border-radius:999px;
+    padding:14px 44px;font-size:17px;letter-spacing:3px;cursor:pointer;box-shadow:0 8px 24px rgba(63,126,79,.4);
+    transition:transform .18s;font-family:inherit;
+  }
+  #startBtn:hover{transform:translateY(-2px);}
+  #startBtn:active{transform:scale(.96);}
+  #intro .i-tip{margin-top:16px;font-size:12px;color:#9aa894;}
+
+  #story{background:rgba(250,245,230,.96);display:none;}
+  #story.show{display:flex;}
+  .st-step{display:none;flex-direction:column;align-items:center;max-width:460px;}
+  .st-step.on{display:flex;animation:stIn .55s ease;}
+  @keyframes stIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  .st-step .st-ico{width:96px;height:96px;}
+  .st-step h2{font-size:21px;margin:18px 0 8px;color:#33513a;letter-spacing:2px;}
+  .st-step p{font-size:14.5px;line-height:1.9;color:#5b6a56;margin:0;white-space:pre-line;}
+  .st-dots{position:absolute;bottom:120px;display:flex;gap:8px;}
+  .st-dots i{width:8px;height:8px;border-radius:50%;background:#c9d6c3;transition:.3s;}
+  .st-dots i.on{background:var(--green-mid);width:22px;border-radius:99px;}
+  #story .pill{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 60px);}
+
+  #finale{background:rgba(45,58,44,.55);backdrop-filter:blur(10px);display:none;}
+  #finale.show{display:flex;}
+  #finale .f-panel{
+    background:linear-gradient(170deg,#fffaf0,#f2f7ec);border-radius:26px;padding:34px 30px 26px;
+    width:min(460px,calc(100vw - 32px));box-shadow:0 24px 70px rgba(0,0,0,.35);
+    animation:stIn .7s ease;max-height:84vh;overflow:auto;
+  }
+  #finale h2{font-size:24px;color:#33513a;margin:0 0 4px;letter-spacing:2px;font-family:"KaiTi","STKaiti","楷体","PingFang SC",serif;}
+  #finale .f-num{font-size:13px;color:var(--ink-soft);}
+  #finale .f-num b{color:var(--green-deep);font-size:18px;}
+  #finale .f-quote{
+    margin:18px 0;padding:14px 16px;background:rgba(95,163,108,.1);border-radius:14px;
+    font-size:14.5px;line-height:2;color:#4c5a48;text-align:left;
+    font-family:"KaiTi","STKaiti","楷体","PingFang SC",serif;
+  }
+  #finale .f-sign{display:block;text-align:right;margin-top:10px;font-size:13px;color:#7d8f78;letter-spacing:1px;}
+  #finale .f-photo{
+    margin:4px 0 14px;border:2px dashed #c9d6c3;border-radius:16px;padding:10px;
+    background:rgba(255,255,255,.5);text-align:center;
+  }
+  #finale .f-photo img{display:block;width:100%;max-width:420px;border-radius:12px;margin:0 auto;box-shadow:0 8px 24px rgba(51,81,58,.12);}
+  #finale .f-photo .f-cap{margin-top:8px;font-size:12px;color:#7d8f78;letter-spacing:.5px;}
+  #finale .f-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .f-btn{
+    border:none;border-radius:999px;padding:12px 24px;font-size:14.5px;cursor:pointer;letter-spacing:1px;
+    transition:transform .15s;font-family:inherit;
+  }
+  .f-btn:active{transform:scale(.95);}
+  .f-btn.main{background:linear-gradient(145deg,#6fb37a,#4e8f5b);color:#fff;box-shadow:0 6px 18px rgba(63,126,79,.35);}
+  .f-btn.ghost{background:rgba(95,163,108,.14);color:var(--green-deep);}
+  #finale .f-credit{margin-top:16px;font-size:11px;color:#9aa894;}
+
+  /* toast */
+  #toast{
+    position:absolute;z-index:60;top:20%;left:50%;transform:translateX(-50%) translateY(-8px);
+    background:rgba(61,74,58,.88);color:#fff;border-radius:12px;padding:10px 20px;font-size:13.5px;
+    opacity:0;transition:.35s;pointer-events:none;white-space:nowrap;letter-spacing:1px;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:600px){
+    #searchWrap{width:calc(100vw - 24px);top:calc(env(safe-area-inset-top,0px) + 52px);}
+    #brand{display:none !important;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="viewport"><svg id="world" xmlns="http://www.w3.org/2000/svg"></svg></div>
+
+  <!-- HUD -->
+  <div id="brand" class="hud"><b>562班</b>·毕业森林</div>
+  <div id="counter" class="hud">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 22v-9" stroke="#4e8f5b" stroke-width="2" stroke-linecap="round"/><path d="M12 13c0-4 2.5-7 7-7 0 4-2.5 7-7 7zm0 0c0-3.2-2-5.8-5.6-5.8C6.4 10.4 8.4 13 12 13z" fill="#4e8f5b"/></svg>
+    已种下 <b id="cntNum">0</b> / 48 棵
+  </div>
+
+  <div id="searchWrap" class="hud">
+    <div id="searchBox">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#6b7a66" stroke-width="2"/><path d="M20 20l-4-4" stroke="#6b7a66" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="searchInput" placeholder="输入名字，找到你的那棵树…" autocomplete="off">
+    </div>
+    <div id="searchResults"></div>
+  </div>
+
+  <div id="ctrls" class="hud">
+    <button class="cbtn" id="btnPanorama"><svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-4-4M8 11h6M11 8v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>全景</button>
+    <button class="cbtn" id="btnAuto"><svg viewBox="0 0 24 24" fill="none"><path d="M6 5l14 7-14 7V5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/></svg>轮播</button>
+    <button class="cbtn" id="btnReplay"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 1 2.4 5.7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 20v-5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>重播</button>
+    <button class="cbtn" id="btnMute"><svg viewBox="0 0 24 24" fill="none"><path d="M4 9v6h4l5 4V5L8 9H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/><path class="sw" d="M16.5 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>音效</button>
+    <button class="cbtn" id="btnFinale"><svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5a1 1 0 0 1 1-1h9l5 5v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2"/><path d="M8 13l2.5 2.5L16 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>尾声</button>
+  </div>
+
+  <div id="plantCtl" class="hud" style="display:none">
+    <button class="pill" id="btnSpeed">加速 ×3</button>
+    <button class="pill" id="btnSkip">跳过动画</button>
+  </div>
+
+  <div id="banner" class="hud"><div class="bn" id="bannerName"></div><div class="bs" id="bannerSub"></div></div>
+
+  <!-- 树卡片 -->
+  <div id="card">
+    <div class="c-top">
+      <div class="c-avatar" id="cAvatar"></div>
+      <div>
+        <div class="c-name" id="cName"></div>
+        <div class="c-sub" id="cSub"></div>
+      </div>
+      <button class="c-close" id="cClose">✕</button>
+    </div>
+    <div class="c-wish" id="cWish"></div>
+    <div class="c-species" id="cSpecies"></div>
+    <div class="c-foot">
+      <span>2026.03.12 · 与顺丰一起种于松山湖畔</span>
+      <span class="c-nav">
+        <button id="cPrev">‹ 上一棵</button>
+        <button id="cNext">下一棵 ›</button>
+      </span>
+    </div>
+  </div>
+
+  <!-- 开场 -->
+  <div id="intro" class="overlay">
+    <svg class="i-tree" viewBox="0 0 110 130">
+      <ellipse cx="55" cy="122" rx="30" ry="6" fill="#8a9b76" opacity=".35"/>
+      <path d="M52 122c-2-18 0-34 2-48l4 0c2 14 4 30 2 48z" fill="#8b5e3c"/>
+      <ellipse cx="55" cy="52" rx="42" ry="30" fill="#3f7e4f"/>
+      <ellipse cx="35" cy="62" rx="26" ry="18" fill="#4e8f5b"/>
+      <ellipse cx="74" cy="60" rx="24" ry="17" fill="#5fa36c"/>
+      <ellipse cx="55" cy="38" rx="22" ry="15" fill="#6fb37a"/>
+      <circle cx="42" cy="45" r="2.4" fill="#fff"/><circle cx="66" cy="52" r="2.2" fill="#fff"/><circle cx="55" cy="66" r="2" fill="#fff"/>
+      <path d="M40 78v14M52 82v17M65 79v13" stroke="#86b36a" stroke-width="3.4" stroke-linecap="round"/>
+      <circle cx="40" cy="93" r="1.8" fill="#4e8f5b"/><circle cx="52" cy="100" r="1.8" fill="#4e8f5b"/><circle cx="65" cy="93" r="1.8" fill="#4e8f5b"/>
+    </svg>
+    <h1>我们为你种树</h1>
+    <div class="i-sub"><b>562班</b> × 顺丰公益森林 · 48 棵树 · 48 个名字</div>
+    <button id="startBtn">开 始 · 一 起 种 树</button>
+    <div class="i-tip">点击每一棵树，可以看见它的名字 · 建议横屏体验</div>
+  </div>
+
+  <!-- 故事引入 -->
+  <div id="story" class="overlay">
+    <div class="st-step on">
+      <svg class="st-ico" viewBox="0 0 96 96"><rect x="30" y="14" width="36" height="60" rx="7" fill="#fff" stroke="#4e8f5b" stroke-width="3"/><rect x="36" y="22" width="24" height="40" rx="3" fill="#e3f1e4"/><path d="M48 54c-6-4-9-9-9-14 0-5 3-9 9-13 6 4 9 8 9 13 0 5-3 10-9 14z" fill="#4e8f5b"/><path d="M48 54V31" stroke="#fff" stroke-width="1.6"/><circle cx="48" cy="80" r="3" fill="#4e8f5b"/></svg>
+      <h2>线上领养</h2><p>班主任大卡在顺丰森林线上领养了秋茄树苗。<br>这个绰号"水笔仔"的小家伙，<br>成了562班共同的约定。</p>
+    </div>
+    <div class="st-step">
+      <svg class="st-ico" viewBox="0 0 96 96"><path d="M20 62c6-8 14-8 20 0M44 62c6-10 16-10 22 0" stroke="#4e8f5b" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M28 62v10M33 62v10M55 62v10M60 62v10" stroke="#4e8f5b" stroke-width="3" stroke-linecap="round"/><path d="M46 34c-3-6-9-8-15-6 2-7 9-11 16-9 6 2 10 8 8 15-2 5-6 8-9 0z" fill="#7fb9d0"/><path d="M46 34c4 4 5 9 4 14" stroke="#7fb9d0" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M50 52l3 6M50 52l-6 3" stroke="#7fb9d0" stroke-width="3" stroke-linecap="round"/></svg>
+      <h2>捐步浇水</h2><p>同学们把每天走出的步数捐出来浇水，<br>小树苗在大家的脚步里一点点长大。</p>
+    </div>
+    <div class="st-step">
+      <svg class="st-ico" viewBox="0 0 96 96"><path d="M30 40l14-8 22 4 6 12-6 22-28 2-10-14z" fill="#d9a066" stroke="#b78048" stroke-width="2.5"/><path d="M31 41l13-7 21 4" stroke="#b78048" stroke-width="2" fill="none"/><text x="48" y="60" text-anchor="middle" font-size="15" fill="#5b3a1e" font-weight="bold">名字</text></svg>
+      <h2>命名仪式</h2><p>班级水群里办了一场简约的仪式，<br>四十八棵树，拥有了四十八个名字，<br>每一棵，都属于一个独一无二的你。</p>
+    </div>
+    <div class="st-step">
+      <svg class="st-ico" viewBox="0 0 96 96"><path d="M8 62h80v14H8z" fill="#8ec9d8"/><path d="M14 62c6-3 12-3 18 0M40 62c6-3 12-3 18 0M66 62c6-3 10-3 16 0" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".8"/><path d="M36 58c0-10 4-18 10-24M46 34c2-6 8-10 14-10" stroke="#8b5e3c" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M60 24l6-4 2 7-8 3z" fill="#6b6b6b"/><ellipse cx="42" cy="42" rx="9" ry="7" fill="#4e8f5b"/><ellipse cx="34" cy="46" rx="6" ry="5" fill="#5fa36c"/></svg>
+      <h2>植树节 · 种下</h2><p>2026 年 3 月 12 日，植树节，<br>我们和顺丰的小伙伴一起，<br>在松山湖畔，亲手种下了它们。</p>
+    </div>
+    <div class="st-dots"><i class="on"></i><i></i><i></i><i></i></div>
+    <button class="pill" id="storySkip">跳过 ›</button>
+  </div>
+
+  <!-- 尾声 -->
+  <div id="finale" class="overlay">
+    <div class="f-panel">
+      <h2>一片森林，长成了</h2>
+      <div class="f-num">松山湖畔 · 共 <b>48</b> 棵树 · 48 个名字</div>
+      <div class="f-quote">"当树把根扎进泥土的时候，不问这土地肥沃还是贫瘠。它只是站着，在春雨里抽出嫩芽，在夏阳下撑开绿荫。待到你们毕业那天，我会很自豪地对你说：<b>我们和顺丰一起，在松山湖畔，为你种了树。</b>"<br><span class="f-sign">—— 班主任 大卡</span></div>
+      <div class="f-photo"><img src="group-photo.jpg" alt="562 顺丰公益 植树合影"><div class="f-cap">562 顺丰公益 植树合影</div></div>
+      <div class="f-btns">
+        <button class="f-btn main" id="fExplore">自由探索森林</button>
+        <button class="f-btn ghost" id="fReplay">再看一遍种树</button>
+      </div>
+      <div class="f-credit">562 顺丰公益 2026</div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+/* =====================================================================
+   名单配置区
+   ---------------------------------------------------------------------
+   拿到正式名单后：把 48 个名字按种树顺序填入 RAW_NAMES（引号+逗号）。
+   如需每人专属祝福，按同样顺序填入 RAW_WISHES，留空 "" 则使用通用寄语。
+   例如： const RAW_NAMES = ["张三","李四", ... 共48个];
+   ===================================================================== */
+const RAW_NAMES = [
+  "芊羽","子琪","雯臻","若涵","江朋","振浩","思靖","国辉",
+  "肖颖珊","明浩","吴娜","佳媚","静雯","心怡","黄颖","炜仪",
+  "灿琳","静怡","佳佳","思妍","安祺","海怡","奕杏","炳豪",
+  "振杰","如宏","晓琦","黄颖珊","诗雨","子健","庸津","心焕",
+  "彭科","鹏飞","展恒","金辉","锦烽","作曦","陈可","彭博",
+  "艺盈","雅楠","嘉欣","文青","昊雅","李稀","林琳","大卡"
+];
+const RAW_WISHES = [];
+
+const DEFAULT_WISHES = [
+  "愿你像树一样，把根扎深，把梦长高。",
+  "向下扎根，向上生长，前路皆是坦途。",
+  "愿这棵树替我陪着你，看四季轮转，岁岁常新。",
+  "无论走多远，松山湖畔永远有一棵属于你的树。",
+  "愿你有树一般的耐心，也有风一般的自由。",
+  "种一棵树最好的时间是现在，愿你前程似锦。",
+  "愿你成为一座桥，连接世界与远方。",
+  "让万物流动，让温暖抵达——562班，出发吧。"
+];
+
+const N = 48;
+const STUDENTS = [];
+for (let i = 0; i < N; i++) {
+  STUDENTS.push({
+    name: (RAW_NAMES[i] || ("同学" + String(i + 1).padStart(2, "0"))),
+    wish: (RAW_WISHES && RAW_WISHES[i]) || DEFAULT_WISHES[i % DEFAULT_WISHES.length],
+    placeholder: !RAW_NAMES[i]
+  });
+}
+
+/* ---------- 世界常量 ---------- */
+const WORLD_W = 5600, WORLD_H = 900, EXT = 2400;          // EXT: 场景向两侧延伸宽度
+const SCENE_L = -EXT, SCENE_R = WORLD_W + EXT;
+const FRONT_Y = 806, BACK_Y = 700;
+
+/* ---------- 工具 ---------- */
+const SVGNS = "http://www.w3.org/2000/svg";
+function el(name, attrs, parent) {
+  const e = document.createElementNS(SVGNS, name);
+  if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+/* 确定性伪随机（同一序号每次一致） */
+function rnd(seed) { const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+
+/* =====================================================================
+   场景搭建
+   ===================================================================== */
+const svg = document.getElementById("world");
+svg.setAttribute("width", WORLD_W); svg.setAttribute("height", WORLD_H);
+
+/* --- 渐变定义 --- */
+const defs = el("defs", null, svg);
+defs.innerHTML = `
+  <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fdf0d5"/><stop offset=".55" stop-color="#f6f3d9"/><stop offset="1" stop-color="#dcecd9"/>
+  </linearGradient>
+  <linearGradient id="lakeG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#a5d3de"/><stop offset="1" stop-color="#7fbfd0"/>
+  </linearGradient>
+  <linearGradient id="grassG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#a8d48b"/><stop offset="1" stop-color="#7db35f"/>
+  </linearGradient>
+  <linearGradient id="hillG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#b9d7c3"/><stop offset="1" stop-color="#9cc7ac"/>
+  </linearGradient>
+  <radialGradient id="sunG"><stop offset="0" stop-color="#ffe9b0"/><stop offset="1" stop-color="#ffd98e" stop-opacity="0"/></radialGradient>
+`;
+
+/* --- 天空 / 太阳 / 云 --- */
+el("rect", { x: SCENE_L, y: 0, width: SCENE_R - SCENE_L, height: 640, fill: "url(#skyG)" }, svg);
+const sun = el("g", { transform: "translate(860,150)" }, svg);
+el("circle", { class: "sun-glow", cx: 0, cy: 0, r: 110, fill: "url(#sunG)" }, sun);
+el("circle", { cx: 0, cy: 0, r: 46, fill: "#ffdf9e" }, sun);
+
+for (let i = 0; i < 16; i++) {
+  const cx = SCENE_L + 200 + i * 720 + rnd(i) * 300, cy = 60 + rnd(i + 9) * 150;
+  const s = 0.7 + rnd(i + 3) * 0.8;
+  const g = el("g", { class: "cloud", transform: `translate(${cx},${cy}) scale(${s})` }, svg);
+  [[0,0,46],[38,6,32],[-36,8,30],[10,-14,30]].forEach(p =>
+    el("ellipse", { cx: p[0], cy: p[1], rx: p[2], ry: p[2]*0.62, fill: "#ffffff", opacity: .88 }, g));
+}
+
+/* --- 远山与近丘（程序化起伏） --- */
+function ridge(yBase, amp, step, fill, opac, seed0) {
+  let d = `M${SCENE_L} ${yBase + 40}`;
+  for (let x = SCENE_L, k = 0; x <= SCENE_R; x += step, k++) {
+    const h = yBase - amp * (0.45 + 0.55 * rnd(seed0 + k * 7.3));
+    d += ` Q${x + step * 0.5} ${h} ${x + step} ${yBase - amp * 0.25 * rnd(seed0 + k * 3.1)}`;
+  }
+  d += ` L${SCENE_R} 640 L${SCENE_L} 640 Z`;
+  el("path", { d, fill, opacity: opac }, svg);
+}
+ridge(500, 150, 520, "url(#hillG)", 0.85, 11);
+ridge(560, 90, 380, "#a9cfb4", 0.9, 47);
+
+/* --- 湖 --- */
+el("rect", { x: SCENE_L, y: 548, width: SCENE_R - SCENE_L, height: 108, fill: "url(#lakeG)" }, svg);
+el("ellipse", { cx: 860, cy: 590, rx: 130, ry: 14, fill: "#fff", opacity: .25 }, svg);
+[0, 1, 2].forEach(i => {
+  const g = el("g", { class: "wave w" + (i + 1), opacity: .5 }, svg);
+  const wy = 570 + i * 26, seg = 120;
+  for (let x = SCENE_L; x < SCENE_R; x += seg * 2) {
+    el("path", { d: `M${x} ${wy} q${seg * .5} ${i % 2 ? -5 : 5} ${seg} 0`, stroke: "#fff", "stroke-width": 2, fill: "none", "stroke-linecap": "round", opacity: .5 }, g);
+  }
+});
+
+/* --- 草地 --- */
+el("rect", { x: SCENE_L, y: 640, width: SCENE_R - SCENE_L, height: WORLD_H - 640, fill: "url(#grassG)" }, svg);
+el("path", { d: `M${SCENE_L} 640 q400 -14 800 0 t800 0 t800 0 t800 0 t800 0 t800 0 L${SCENE_R} 660 L${SCENE_L} 660 Z`, fill: "#8cc473", opacity: .8 }, svg);
+
+/* --- 飞鸟 --- */
+[[1500, 180], [2600, 120], [3900, 200]].forEach((b, i) => {
+  const g = el("g", { class: "bird " + (i === 1 ? "b2" : i === 2 ? "b3" : ""), transform: `translate(${b[0]},${b[1]})` }, svg);
+  el("path", { d: "M-14 0 q7 -8 14 0 q7 -8 14 0", stroke: "#5a6b57", "stroke-width": 2.4, fill: "none", "stroke-linecap": "round" }, g);
+});
+
+/* =====================================================================
+   树
+   ===================================================================== */
+const treesG = el("g", null, svg);
+const TREES = [];
+
+function buildTree(i) {
+  const back = i % 2 === 0;
+  const x = 330 + i * 104 + (rnd(i) - 0.5) * 26;
+  const y = back ? BACK_Y : FRONT_Y;
+  const s = (back ? 0.82 : 1) * (0.92 + rnd(i + 5) * 0.18);
+  const rot = (rnd(i + 2) - 0.5) * 4;
+
+  const g = el("g", { class: "tree", transform: `translate(${x},${y}) scale(${s}) rotate(${rot})`, "data-i": i }, treesG);
+
+  /* 高亮环 */
+  el("circle", { class: "ring", cx: 0, cy: -82, r: 108, fill: "none", stroke: "#ffd98e", "stroke-width": 5.5 }, g);
+
+  /* 土堆 */
+  el("ellipse", { class: "mound", cx: 0, cy: 0, rx: 29, ry: 8.5, fill: "#a97c50" }, g);
+
+  const plant = el("g", { class: "plant" }, g);
+
+  /* 板状根 */
+  el("path", { d: "M-8 2 C-16 2 -22 -2 -28 -10 l6 -3 c5 5 12 7 18 7z", fill: "#8b5e3c" }, plant);
+  el("path", { d: "M8 2 C16 2 22 -2 28 -10 l-6 -3 c-5 5 -12 7 -18 7z", fill: "#8b5e3c" }, plant);
+  /* 树干：加粗、向上伸入树冠 */
+  el("path", { d: "M-6 2 C-9 -36 -6 -72 -5 -96 L5 -96 C6 -72 9 -36 6 2 Z", fill: "#8b5e3c" }, plant);
+  el("path", { d: "M0 2 C-1 -30 0 -60 1 -82", stroke: "#7a4f31", "stroke-width": 1.5, fill: "none", opacity: .5 }, plant);
+
+  const canopy = el("g", { class: "canopy-parts" }, plant);
+  const js = (k) => (rnd(i * 10 + k) - 0.5) * 10;
+  /* 树冠：多层椭圆压低、包裹树干顶部，避免出现“树冠浮在树干上方”的缝隙 */
+  el("ellipse", { cx: js(1), cy: -122 + js(2) * .5, rx: 64, ry: 50, fill: "#3f7e4f" }, canopy);
+  el("ellipse", { cx: -24 + js(3), cy: -118 + js(4) * .5, rx: 40, ry: 30, fill: "#4e8f5b" }, canopy);
+  el("ellipse", { cx: 24 + js(5), cy: -126 + js(6) * .5, rx: 38, ry: 28, fill: "#5fa36c" }, canopy);
+  el("ellipse", { cx: js(7), cy: -152 + js(8) * .5, rx: 32, ry: 22, fill: "#6fb37a" }, canopy);
+  /* 小白花 */
+  const flowers = 2 + Math.floor(rnd(i + 31) * 3);
+  for (let f = 0; f < flowers; f++)
+    el("circle", { cx: -34 + rnd(i * 7 + f) * 68, cy: -148 + rnd(i * 13 + f) * 30, r: 2.2, fill: "#fff", opacity: .92 }, canopy);
+  /* 水笔仔（胎生苗，秋茄标志） */
+  const props = 3 + Math.floor(rnd(i + 41) * 3);
+  for (let p = 0; p < props; p++) {
+    const px = -34 + rnd(i * 17 + p) * 68, py = -105 - rnd(i * 19 + p) * 16, len = 16 + rnd(i * 23 + p) * 10;
+    el("line", { x1: px, y1: py, x2: px, y2: py + len, stroke: "#86b36a", "stroke-width": 3.4, "stroke-linecap": "round" }, canopy);
+    el("circle", { cx: px, cy: py + len, r: 2, fill: "#4e8f5b" }, canopy);
+  }
+
+  /* 名牌：挂在树干中段 */
+  const tag = el("g", { class: "tag" }, plant);
+  el("line", { x1: 0, y1: -52, x2: 0, y2: -40, stroke: "#9c7a4d", "stroke-width": 1.6 }, tag);
+  const name = STUDENTS[i].name;
+  const wBox = Math.max(48, name.length * 15 + 18);
+  el("rect", { x: -wBox / 2, y: -40, width: wBox, height: 26, rx: 6, fill: "#d9a066", stroke: "#b78048", "stroke-width": 1.6 }, tag);
+  el("circle", { cx: 0, cy: -37, r: 2, fill: "#8a6238" }, tag);
+  const t = el("text", { x: 0, y: -22, "text-anchor": "middle", "font-size": 14, "font-weight": 700, fill: "#5b3a1e" }, tag);
+  t.textContent = name;
+
+  g.addEventListener("click", (e) => { e.stopPropagation(); if (STATE.mode === "explore" || STATE.mode === "auto") { stopAuto(); focusTree(i); openCard(i); } });
+  TREES.push({ g, x, y, i });
+}
+for (let i = 0; i < N; i++) buildTree(i);
+
+/* --- 前景草丛 --- */
+for (let i = 0; i < 90; i++) {
+  const gx = SCENE_L + rnd(i + 100) * (SCENE_R - SCENE_L), gy = 700 + rnd(i + 200) * 190;
+  if (gy < 660) continue;
+  const gg = el("g", { transform: `translate(${gx},${gy}) scale(${0.7 + rnd(i) * 0.9})` }, svg);
+  el("path", { d: "M0 0 q-4 -10 -8 -13 M0 0 q0 -12 2 -16 M0 0 q5 -9 9 -12", stroke: "#5f9e4a", "stroke-width": 2.2, fill: "none", "stroke-linecap": "round", opacity: .55 }, gg);
+  if (rnd(i + 55) > .88) el("circle", { cx: 3, cy: -14, r: 2.6, fill: "#f4a94f", opacity: .8 }, gg);
+}
+
+/* =====================================================================
+   镜头
+   ===================================================================== */
+const viewport = document.getElementById("viewport");
+const cam = { x: 500, y: 520, zoom: 1 };
+const camTarget = { x: 500, y: 520, zoom: 1 };
+let BASE = 1;
+function resize() { BASE = viewport.clientHeight / WORLD_H; }
+window.addEventListener("resize", resize); resize();
+
+function clampCam(c) {
+  const s = BASE * c.zoom, vw = viewport.clientWidth, vh = viewport.clientHeight;
+  if (WORLD_W * s <= vw) c.x = WORLD_W / 2; else c.x = Math.min(Math.max(c.x, vw / (2 * s) - 200), WORLD_W - vw / (2 * s) + 200);
+  if (WORLD_H * s <= vh) c.y = WORLD_H / 2; else c.y = Math.min(Math.max(c.y, vh / (2 * s)), WORLD_H - vh / (2 * s));
+  return c;
+}
+function applyCam() {
+  const c = clampCam(cam);
+  const s = BASE * c.zoom, vw = viewport.clientWidth, vh = viewport.clientHeight;
+  svg.style.transform = `translate(${vw / 2 - c.x * s}px,${vh / 2 - c.y * s}px) scale(${s})`;
+}
+(function loop() {
+  const k = 0.085;
+  cam.x += (camTarget.x - cam.x) * k;
+  cam.y += (camTarget.y - cam.y) * k;
+  cam.zoom += (camTarget.zoom - cam.zoom) * k;
+  applyCam(); requestAnimationFrame(loop);
+})();
+function flyTo(x, y, zoom) { camTarget.x = x; camTarget.y = y; if (zoom) camTarget.zoom = zoom; }
+
+/* 拖拽 / 滚轮 */
+let dragging = false, lastPX = 0, lastPY = 0, downPX = 0, downPY = 0;
+viewport.addEventListener("pointerdown", (e) => {
+  if (STATE.mode !== "explore") return;
+  downPX = lastPX = e.clientX; downPY = lastPY = e.clientY;
+  dragging = false;
+});
+viewport.addEventListener("pointermove", (e) => {
+  if (STATE.mode !== "explore") return;
+  if (!dragging) {
+    /* 移动超过阈值才算拖拽，避免单击（点树）被指针捕获吞掉 */
+    if (Math.abs(e.clientX - downPX) + Math.abs(e.clientY - downPY) < 8) return;
+    dragging = true;
+    viewport.classList.add("dragging");
+    try { viewport.setPointerCapture(e.pointerId); } catch (err) {}
+  }
+  const s = BASE * cam.zoom;
+  camTarget.x -= (e.clientX - lastPX) / s;
+  camTarget.y -= (e.clientY - lastPY) / s * 0.35;
+  lastPX = e.clientX; lastPY = e.clientY;
+});
+["pointerup", "pointercancel"].forEach(ev => viewport.addEventListener(ev, () => { dragging = false; viewport.classList.remove("dragging"); }));
+viewport.addEventListener("wheel", (e) => {
+  if (STATE.mode !== "explore") return;
+  e.preventDefault();
+  camTarget.zoom = Math.min(2.4, Math.max(0.08, camTarget.zoom * Math.exp(-e.deltaY * 0.0012)));
+}, { passive: false });
+
+/* =====================================================================
+   音效（轻量合成）
+   ===================================================================== */
+let AC = null, muted = false;
+function ensureAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } }
+function tone(freqA, freqB, dur, vol, delay) {
+  if (!AC || muted) return;
+  const t0 = AC.currentTime + (delay || 0);
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = "triangle"; o.frequency.setValueAtTime(freqA, t0);
+  o.frequency.exponentialRampToValueAtTime(freqB, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+}
+const popSound = () => tone(430, 880, 0.16, 0.12);
+const doneSound = () => { tone(523, 523, 0.35, 0.1); tone(659, 659, 0.35, 0.1, 0.18); tone(784, 784, 0.5, 0.12, 0.36); };
+
+/* =====================================================================
+   状态机与流程
+   ===================================================================== */
+const STATE = { mode: "intro", planted: 0, speed: 1 };
+const $ = (id) => document.getElementById(id);
+let plantTimers = [];
+
+function show(id, disp) { const e = $(id); e.style.display = disp || "flex"; }
+function hide(id) { $(id).style.display = "none"; }
+
+function toast(msg, dur) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove("show"), dur || 2400);
+}
+
+/* --- 开场 → 故事 --- */
+$("startBtn").addEventListener("click", () => {
+  ensureAudio(); if (AC && AC.state === "suspended") AC.resume();
+  tone(523, 784, 0.25, 0.1);
+  $("intro").classList.add("hide");
+  show("story"); STATE.mode = "story";
+  runStory();
+});
+
+let storyIdx = 0, storyTimer = null;
+function runStory() {
+  const steps = document.querySelectorAll(".st-step");
+  const dots = document.querySelectorAll(".st-dots i");
+  storyIdx = 0;
+  const step = () => {
+    steps.forEach((s, k) => s.classList.toggle("on", k === storyIdx));
+    dots.forEach((d, k) => d.classList.toggle("on", k === storyIdx));
+    storyIdx++;
+    if (storyIdx < steps.length) storyTimer = setTimeout(step, 3000);
+    else storyTimer = setTimeout(startPlanting, 2600);
+  };
+  step();
+}
+function endStory() { clearTimeout(storyTimer); hide("story"); }
+$("storySkip").addEventListener("click", () => { endStory(); startPlanting(); });
+
+/* --- 种树动画 --- */
+function startPlanting() {
+  endStory();
+  plantTimers.forEach(clearTimeout); plantTimers = [];
+  STATE.mode = "plant"; STATE.planted = 0; STATE.speed = 1;
+  $("btnSpeed").textContent = "加速 ×3";
+  /* 复位 */
+  TREES.forEach(t => { t.g.classList.remove("grow", "hot", "instant", "dim"); });
+  $("cntNum").textContent = "0";
+  show("counter", "flex"); hide("ctrls"); hide("searchWrap"); hide("card");
+  show("plantCtl", "flex");
+  flyTo(TREES[0].x + viewport.clientWidth * 0.10 / (BASE * cam.zoom), 520, 1);
+  schedule(0, 900);
+}
+function schedule(i, delay) {
+  plantTimers.push(setTimeout(() => plantOne(i), delay));
+}
+function plantOne(i) {
+  if (i >= N) { finishPlanting(); return; }
+  const t = TREES[i];
+  t.g.classList.add("grow");
+  popSound();
+  STATE.planted = i + 1;
+  $("cntNum").textContent = STATE.planted;
+  const c = $("counter"); c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop");
+  const s = BASE * camTarget.zoom;
+  flyTo(t.x + viewport.clientWidth * 0.10 / s, 520, camTarget.zoom);
+  const gap = STATE.speed === 1 ? 820 : STATE.speed === 3 ? 300 : 110;
+  schedule(i + 1, gap);
+}
+$("btnSpeed").addEventListener("click", () => {
+  STATE.speed = STATE.speed === 1 ? 3 : STATE.speed === 3 ? 8 : 1;
+  $("btnSpeed").textContent = STATE.speed === 1 ? "加速 ×3" : STATE.speed === 3 ? "加速 ×8" : "正常速度";
+  toast(STATE.speed === 1 ? "已恢复正常速度" : "已切换加速 ×" + STATE.speed, 1200);
+});
+$("btnSkip").addEventListener("click", () => {
+  plantTimers.forEach(clearTimeout); plantTimers = [];
+  TREES.forEach(t => { t.g.classList.add("grow", "instant"); });
+  STATE.planted = N; $("cntNum").textContent = N;
+  finishPlanting(true);
+});
+function finishPlanting(skipped) {
+  if (STATE.mode !== "plant") return;
+  STATE.mode = "explore";
+  hide("plantCtl");
+  show("ctrls", "flex"); show("searchWrap", "block"); show("brand", "flex");
+  enterPanorama(); setTimeout(() => { flyTo(WORLD_W / 2, 520, 1); }, 2500);
+  doneSound();
+  setTimeout(exitPanorama, 2400);
+  if (!skipped) setTimeout(openFinale, 2800);
+  else toast("48 棵树已就位！点击任意一棵树查看名字", 3000);
+}
+function openFinale() { stopAuto(); show("finale"); $("finale").classList.add("show"); STATE.mode = "finale"; }
+$("btnFinale").addEventListener("click", openFinale);
+$("fExplore").addEventListener("click", () => { $("finale").classList.remove("show"); setTimeout(() => hide("finale"), 600); STATE.mode = "explore"; });
+$("fReplay").addEventListener("click", () => { $("finale").classList.remove("show"); setTimeout(() => hide("finale"), 600); startPlanting(); });
+$("btnReplay").addEventListener("click", startPlanting);
+
+/* --- 全景 / 探索缩放 --- */
+let isPanorama = false;
+function enterPanorama() {
+  isPanorama = true; $("btnPanorama").classList.add("on");
+  camTarget.zoom = Math.max(viewport.clientWidth / (WORLD_W * BASE), 0.12);
+  flyTo(WORLD_W / 2, 520);
+  /* 全景下名牌太小，隐藏避免糊成一团 */
+  treesG.classList.add("pan");
+}
+function exitPanorama() {
+  isPanorama = false; $("btnPanorama").classList.remove("on");
+  camTarget.zoom = 1; flyTo(cam.x, 520);
+  treesG.classList.remove("pan");
+}
+$("btnPanorama").addEventListener("click", () => {
+  if (STATE.mode !== "explore") return;
+  isPanorama ? exitPanorama() : (enterPanorama(), flyTo(WORLD_W / 2, 520));
+});
+
+/* --- 卡片 --- */
+let cardIdx = -1;
+function openCard(i) {
+  cardIdx = i;
+  const stu = STUDENTS[i];
+  $("cAvatar").textContent = stu.name.slice(-2);
+  $("cName").textContent = stu.name + (stu.placeholder ? "" : "");
+  $("cSub").textContent = "第 " + (i + 1) + " 棵 · 专属毕业树";
+  $("cWish").textContent = "“" + stu.wish + "”";
+  $("cSpecies").innerHTML = "<b>秋茄</b> · 绰号“水笔仔”，红树林成员。会“胎生”的神奇小树：种子在母树上发芽成笔状小苗，落下即扎根。它是挡风墙、净水器，也是海边小动物的五星公寓。";
+  $("card").classList.add("show");
+  TREES.forEach(t => t.g.classList.toggle("dim", false));
+}
+$("cClose").addEventListener("click", () => $("card").classList.remove("show"));
+$("cPrev").addEventListener("click", () => navCard(-1));
+$("cNext").addEventListener("click", () => navCard(1));
+function navCard(d) {
+  const j = (cardIdx + d + N) % N;
+  focusTree(j); openCard(j);
+}
+function focusTree(i) {
+  const t = TREES[i];
+  if (isPanorama) exitPanorama();
+  TREES.forEach(x => x.g.classList.remove("hot"));
+  t.g.classList.add("hot");
+  flyTo(t.x, 480, 1.35);
+}
+
+/* --- 搜索 --- */
+const searchInput = $("searchInput"), searchResults = $("searchResults");
+searchInput.addEventListener("input", () => {
+  const q = searchInput.value.trim();
+  if (!q) { searchResults.style.display = "none"; return; }
+  const hits = STUDENTS.map((s, i) => ({ s, i })).filter(o => o.s.name.includes(q)).slice(0, 8);
+  searchResults.innerHTML = "";
+  if (!hits.length) {
+    searchResults.innerHTML = '<div class="sr" style="color:#9aa894">没有找到这个名字</div>';
+  } else hits.forEach(o => {
+    const d = document.createElement("div");
+    d.className = "sr";
+    d.innerHTML = `<span>${o.s.name}</span><small>第 ${o.i + 1} 棵</small>`;
+    d.addEventListener("click", () => {
+      searchResults.style.display = "none"; searchInput.value = "";
+      focusTree(o.i); openCard(o.i);
+    });
+    searchResults.appendChild(d);
+  });
+  searchResults.style.display = "block";
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#searchWrap")) searchResults.style.display = "none";
+});
+
+/* --- 大屏轮播 --- */
+let autoTimer = null, autoIdx = 0;
+$("btnAuto").addEventListener("click", () => { STATE.mode === "auto" ? stopAuto() : startAuto(); });
+function startAuto() {
+  if (STATE.mode !== "explore") return;
+  STATE.mode = "auto"; autoIdx = 0;
+  $("btnAuto").classList.add("on"); $("btnAuto").lastChild.textContent = "停止";
+  hide("card");
+  if (isPanorama) exitPanorama();
+  toast("大屏轮播已开始 · 点击画面任意处停止", 2200);
+  autoStep();
+}
+function autoStep() {
+  if (STATE.mode !== "auto") return;
+  if (autoIdx >= N) { stopAuto(); toast("轮播结束，森林已全部点亮", 2200); return; }
+  const t = TREES[autoIdx];
+  TREES.forEach(x => x.g.classList.remove("hot"));
+  t.g.classList.add("hot");
+  flyTo(t.x, 470, 1.3);
+  $("bannerName").textContent = STUDENTS[autoIdx].name;
+  $("bannerSub").textContent = "第 " + (autoIdx + 1) + " 棵毕业树 · " + (STUDENTS[autoIdx].placeholder ? "（示例名，待替换）" : "秋茄 · 松山湖畔");
+  $("banner").classList.add("show");
+  autoTimer = setTimeout(() => { autoIdx++; autoStep(); }, 2300);
+}
+function stopAuto() {
+  if (STATE.mode !== "auto") return;
+  STATE.mode = "explore";
+  clearTimeout(autoTimer);
+  $("banner").classList.remove("show");
+  $("btnAuto").classList.remove("on"); $("btnAuto").lastChild.textContent = "轮播";
+  TREES.forEach(x => x.g.classList.remove("hot"));
+}
+viewport.addEventListener("click", () => { if (STATE.mode === "auto") stopAuto(); });
+
+/* --- 音效开关 --- */
+$("btnMute").addEventListener("click", function () {
+  muted = !muted;
+  this.classList.toggle("on", muted);
+  this.querySelector(".sw").style.display = muted ? "none" : "";
+});
+
+/* 全景时隐藏名牌（太小看不清） */
+const styleExtra = document.createElement("style");
+styleExtra.textContent = ".pan .tag{opacity:0 !important;}";
+document.head.appendChild(styleExtra);
+treesG.addEventListener("transitionend", () => {});
+</script>
+</body>
+</html>
