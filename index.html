@@ -529,14 +529,14 @@ function buildTree(i) {
     el("circle", { cx: px, cy: py + len, r: 2, fill: "#4e8f5b" }, canopy);
   }
 
-  /* 名牌：挂在树干中段 */
+  /* 名牌：挂在树干中段（放大版，更醒目） */
   const tag = el("g", { class: "tag" }, plant);
-  el("line", { x1: 0, y1: -52, x2: 0, y2: -40, stroke: "#9c7a4d", "stroke-width": 1.6 }, tag);
+  el("line", { x1: 0, y1: -56, x2: 0, y2: -42, stroke: "#9c7a4d", "stroke-width": 2 }, tag);
   const name = STUDENTS[i].name;
-  const wBox = Math.max(48, name.length * 15 + 18);
-  el("rect", { x: -wBox / 2, y: -40, width: wBox, height: 26, rx: 6, fill: "#d9a066", stroke: "#b78048", "stroke-width": 1.6 }, tag);
-  el("circle", { cx: 0, cy: -37, r: 2, fill: "#8a6238" }, tag);
-  const t = el("text", { x: 0, y: -22, "text-anchor": "middle", "font-size": 14, "font-weight": 700, fill: "#5b3a1e" }, tag);
+  const wBox = Math.max(56, name.length * 19 + 22);
+  el("rect", { x: -wBox / 2, y: -42, width: wBox, height: 34, rx: 7, fill: "#d9a066", stroke: "#b78048", "stroke-width": 2 }, tag);
+  el("circle", { cx: 0, cy: -38, r: 2.4, fill: "#8a6238" }, tag);
+  const t = el("text", { x: 0, y: -17, "text-anchor": "middle", "font-size": 19, "font-weight": 800, fill: "#4a2e15" }, tag);
   t.textContent = name;
 
   g.addEventListener("click", (e) => { e.stopPropagation(); if (STATE.mode === "explore" || STATE.mode === "auto") { stopAuto(); focusTree(i); openCard(i); } });
