@@ -28,7 +28,7 @@ GitHub Pages：<https://daka-agent.github.io/562-forest/>
 
 ## 🗂 名单数据
 
-48 棵树对应 48 个名字，定义在 `index.html` 的 `RAW_NAMES` 数组中（按种树顺序排列，第 48 棵为班主任「大卡」）。每人的专属寄语可在 `RAW_WISHES` 数组中补充，未填写时使用通用寄语轮换。
+48 棵树对应 48 个名字，定义在 `index.html` 的 `RAW_NAMES` 数组中（按种树顺序排列）。每人的专属寄语可在 `RAW_WISHES` 数组中补充，未填写时使用通用寄语轮换。
 
 ## 🖼 微信分享
 
